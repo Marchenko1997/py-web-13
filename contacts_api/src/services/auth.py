@@ -25,6 +25,7 @@ class Auth:
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     SECRET_KEY = os.getenv("SECRET_KEY")
     ALGORITHM = os.getenv("ALGORITHM")
+    EMAIL_SECRET_KEY = os.getenv("EMAIL_SECRET_KEY") or SECRET_KEY
 
     def get_password_hash(self, password: str) -> str:
         return self.pwd_context.hash(password)
@@ -72,6 +73,20 @@ class Auth:
         if user is None:
             raise HTTPException(status_code=401, detail="User not found")
         return user
+    
+    async def create_email_token(self, data: dict) -> str:
+        expire = datetime.now(timezone.utc) + timedelta(hours=24)
+        to_encode = data.copy() | {"exp": expire}
+        return jwt.encode(to_encode, self.EMAIL_SECRET_KEY, algorithm=self.ALGORITHM)
+
+    
+    async def get_email_from_token(self, token: str) -> str:
+        try:
+            payload = jwt.decode(token, self.EMAIL_SECRET_KEY, algorithms=[self.ALGORITHM])
+            return payload.get("sub")
+        except JWTError:
+            raise HTTPException(status_code=400, detail="Verification error")
+
 
 
 auth_service = Auth()

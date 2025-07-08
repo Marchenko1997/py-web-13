@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from src.database.models import User
 from src.schemas.users import UserModel
+from sqlalchemy import update
 
 
 async def get_user_by_email(email: str, db: Session):
@@ -17,4 +18,8 @@ async def create_user(body: UserModel, db: Session):
 
 async def update_token(user: User, token: str | None, db: Session):
     user.refresh_token = token
+    db.commit()
+
+async def confirmed_email(email: str, db: Session):
+    db.query(User).filter(User.email == email).update({"confirmed": True})
     db.commit()

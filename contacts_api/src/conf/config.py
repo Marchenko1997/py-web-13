@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     mail_from: EmailStr
     mail_port: int
     mail_server: str
+    mail_from_name: str
 
  
     cloudinary_name: str
