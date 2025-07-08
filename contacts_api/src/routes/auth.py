@@ -18,7 +18,6 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
 
 
-
 @router.post("/signup", response_model=UserResponse, status_code=201)
 async def signup(body: UserModel, db: Session = Depends(get_db)):
     if await repository_users.get_user_by_email(body.email, db):
@@ -100,16 +99,26 @@ async def logout(
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
 
-
     await repository_users.update_token(user, None, db)
 
-@router.get("/email/verify/{token}")
+
+@router.get("/confirm_email/{token}")
 async def confirm_email(token: str, db: Session = Depends(get_db)):
-    email = await auth_service.get_email_from_token(token)
+    try:
+        email = await auth_service.get_email_from_token(token)
+    except HTTPException:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token"
+        )
+
     user = await repository_users.get_user_by_email(email, db)
-    if not user:
-        raise HTTPException(status_code=400, detail="Verification error")
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
+
     if user.confirmed:
-        return {"msg": "Already confirmed"}
-    await repository_users.confirmed_email(email, db)
-    return {"msg": "Email confirmed"}
+        return {"message": "Email already confirmed"}
+
+    await repository_users.confirm_email(email, db)
+    return {"message": "Email confirmed successfully"}

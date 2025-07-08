@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from src.routes import contacts, auth
 from fastapi.middleware.cors import CORSMiddleware
-from src.conf.config import settings
 
 
 app = FastAPI()

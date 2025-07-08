@@ -20,6 +20,11 @@ async def update_token(user: User, token: str | None, db: Session):
     user.refresh_token = token
     db.commit()
 
-async def confirmed_email(email: str, db: Session):
-    db.query(User).filter(User.email == email).update({"confirmed": True})
-    db.commit()
+
+async def confirm_email(email: str, db: Session):
+    user = await get_user_by_email(email, db)
+    if user:
+        user.confirmed = True
+        db.commit()
+        db.refresh(user)
+        return user
