@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "contacts-api"
+version = "0.1.0"
+description = ""
+authors = ["Halyna Marchenko <marchenkohalyna888@gmail.com>"]
+readme = "README.md"
+packages = [{ include = "src" }]
+
+[tool.poetry.dependencies]
+python = ">=3.12"
+fastapi = "^0.115.14"
+uvicorn = "^0.35.0"
+sqlalchemy = "^2.0.41"
+psycopg2-binary = "^2.9.10"
+pydantic = "^2.11.7"
+alembic = "^1.16.2"
+python-dotenv = "^1.1.1"
+email-validator = "^2.2.0"
+python-jose = {extras = ["cryptography"], version = "^3.5.0"}
+passlib = "^1.7.4"
+python-multipart = "^0.0.20"
+bcrypt = "4.0.1"
+
+[build-system]
+requires = ["poetry-core>=2.0.0"]
+build-backend = "poetry.core.masonry.api"
