@@ -24,7 +24,7 @@ async def custom_oauth2_scheme(request: Request) -> str:
 class Auth:
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     SECRET_KEY = os.getenv("SECRET_KEY")
-    ALGORITHM = "HS256"
+    ALGORITHM = os.getenv("ALGORITHM")
 
     def get_password_hash(self, password: str) -> str:
         return self.pwd_context.hash(password)
