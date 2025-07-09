@@ -1,34 +1,63 @@
-# docker-compose.yml
-version: "3.9"
+version: '3.9'
 
 services:
   db:
     image: postgres:15-alpine
+    container_name: db-1
+    restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: Ukraine2018
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: contacts_db
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    networks:
+      - app-network
 
   redis:
     image: redis:7-alpine
+    container_name: redis-1
+    restart: always
     ports:
       - "6379:6379"
+    networks:
+      - app-network
 
-  backend:
+  contacts_api:
+    container_name: backend-1
     build: .
-    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
-    env_file: .env
-    volumes:
-      - .:/app
     ports:
       - "8000:8000"
     depends_on:
       - db
-      - redis
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: contacts_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    networks:
+      - app-network
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    restart: always
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    depends_on:
+      - db
+    networks:
+      - app-network
 
 volumes:
-  pgdata:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge
