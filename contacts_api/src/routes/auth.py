@@ -1,13 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Security
+import secrets
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Security
 from fastapi.security import OAuth2PasswordRequestForm, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from src.database.db import get_db
-from src.schemas.users import UserModel, UserResponse, TokenModel
+from src.schemas.users import RequestResetModel, ResetPasswordModel, UserModel, UserResponse, TokenModel
 from src.repository import users as repository_users
 from src.services.auth import auth_service
-from src.services.email import send_verification_email
+from src.services.email import send_reset_email, send_verification_email
 from src.services.security import oauth2_scheme, http_bearer
 
 import json
@@ -120,3 +121,40 @@ async def confirm_email(token: str, db: Session = Depends(get_db)):
 
     await repository_users.confirm_email(email, db)
     return {"message": "Email confirmed successfully"}
+
+
+@router.post("/request-reset-password")
+async def request_reset_password(
+    body: RequestResetModel, request: Request, db: Session = Depends(get_db)
+):
+    user = await repository_users.get_user_by_email(body.email, db)
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    token = secrets.token_urlsafe(32)
+    redis_key = f"reset:{body.email}"
+    await request.app.state.redis.set(redis_key, token, ex=3600)  # 1 час
+
+    reset_link = (
+        f"http://localhost:3000/reset-password?token={token}&email={body.email}"
+    )
+    await send_reset_email(body.email, reset_link)
+
+    return {"message": "Ссылка для сброса пароля отправлена на email"}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    body: ResetPasswordModel, request: Request, db: Session = Depends(get_db)
+):
+    redis_key = f"reset:{body.email}"
+    token_from_redis = await request.app.state.redis.get(redis_key)
+
+    if not token_from_redis or token_from_redis != body.token:
+        raise HTTPException(status_code=400, detail="Неверный или истёкший токен")
+
+    hashed_password = auth_service.get_password_hash(body.new_password)
+    await repository_users.update_password(body.email, hashed_password, db)
+    await request.app.state.redis.delete(redis_key)
+
+    return {"message": "Пароль успешно обновлён"}

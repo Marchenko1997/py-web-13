@@ -35,3 +35,11 @@ async def update_avatar(user: User, url: str, db: Session) -> User:
     db.commit()
     db.refresh(user)
     return user
+
+
+async def update_password(email: str, hashed_password: str, db: Session):
+    user = await get_user_by_email(email, db)
+    if user:
+        user.password = hashed_password
+        db.commit()
+        db.refresh(user)

@@ -30,3 +30,24 @@ async def send_verification_email(email: EmailStr, token: str):
     )
     fm = FastMail(conf)
     await fm.send_message(message)
+
+
+async def send_reset_email(email: EmailStr, token: str):
+   
+    reset_link = f"{settings.base_url}/reset-password" f"?token={token}&email={email}"
+
+    html = f"""
+        <h3>Запрос на сброс пароля</h3>
+        <p>Если вы не запрашивали сброс, просто проигнорируйте письмо.</p>
+        <p>Иначе нажмите на ссылку ниже, чтобы задать новый пароль:</p>
+        <a href="{reset_link}">{reset_link}</a>
+        <p>Ссылка действительна 1 час.</p>
+    """
+
+    msg = MessageSchema(
+        subject="Сброс пароля",
+        recipients=[email],
+        body=html,
+        subtype="html",
+    )
+    await FastMail(conf).send_message(msg)
