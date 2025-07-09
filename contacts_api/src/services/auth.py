@@ -1,10 +1,3 @@
-"""
-services/auth.py
-
-Ниже — полностью переписанная версия файла с «правильной»
-OAuth2-схемой.  Всё, что связано с кастомным разбором заголовка,
-удалено; теперь Swagger сам отдаёт токен и добавляет кнопку Authorize.
-"""
 
 import os
 from datetime import datetime, timedelta, timezone
@@ -18,10 +11,6 @@ from sqlalchemy.orm import Session
 from src.database.db import get_db
 from src.repository import users as repository_users
 
-# ---------------------------------------------------------------------------
-# 1) Объявляем схему авторизации. tokenUrl должен совпадать с эндпоинтом логина
-#    (тот, который отдаёт access_token).
-# ---------------------------------------------------------------------------
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
@@ -35,18 +24,14 @@ class Auth:
     ALGORITHM = os.getenv("ALGORITHM")
     EMAIL_SECRET_KEY = os.getenv("EMAIL_SECRET_KEY") or SECRET_KEY
 
-    # ---------------------------------------------------------------------
-    # ХЭШИРОВАНИЕ ПАРОЛЕЙ
-    # ---------------------------------------------------------------------
+
     def get_password_hash(self, password: str) -> str:
         return self.pwd_context.hash(password)
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         return self.pwd_context.verify(plain_password, hashed_password)
 
-    # ---------------------------------------------------------------------
-    # ГЕНЕРАЦИЯ JWT-ТОКЕНОВ
-    # ---------------------------------------------------------------------
+  
     async def create_access_token(self, data: dict) -> str:
         """
         Создаёт access-токен на 15 минут.
@@ -65,9 +50,7 @@ class Auth:
         to_encode.update({"exp": expire, "scope": "refresh_token"})
         return jwt.encode(to_encode, self.SECRET_KEY, algorithm=self.ALGORITHM)
 
-    # ---------------------------------------------------------------------
-    # ОБРАТНОЕ ДЕКОДИРОВАНИЕ refresh-ТОКЕНА
-    # ---------------------------------------------------------------------
+  
     async def decode_refresh_token(self, token: str) -> str:
         """
         Возвращает email внутри refresh-токена.
@@ -80,17 +63,12 @@ class Auth:
         except JWTError:
             raise HTTPException(status_code=401, detail="Invalid token")
 
-    # ---------------------------------------------------------------------
-    # ЗАЩИЩЁННЫЙ dependency для эндпоинтов
-    # ---------------------------------------------------------------------
     async def get_current_user(
         self,
-        token: str = Depends(oauth2_scheme),  # ⬅️ берём токен из заголовка
+        token: str = Depends(oauth2_scheme), 
         db: Session = Depends(get_db),
     ):
-        """
-        Проверяет access-токен и отдаёт объект пользователя.
-        """
+      
         try:
             payload = jwt.decode(token, self.SECRET_KEY, algorithms=[self.ALGORITHM])
 
@@ -110,9 +88,7 @@ class Auth:
 
         return user
 
-    # ---------------------------------------------------------------------
-    # ТОКЕН ДЛЯ ПОДТВЕРЖДЕНИЯ EMAIL
-    # ---------------------------------------------------------------------
+   
     async def create_email_token(self, data: dict) -> str:
         expire = datetime.now(timezone.utc) + timedelta(hours=24)
         to_encode = data.copy() | {"exp": expire}
@@ -130,5 +106,5 @@ class Auth:
             )
 
 
-# Экземпляр, который будем импортировать в роуты
+
 auth_service = Auth()
