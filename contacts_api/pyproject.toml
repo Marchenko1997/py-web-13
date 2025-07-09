@@ -24,6 +24,8 @@ cloudinary = "^1.44.1"
 slowapi = "^0.1.9"
 fastapi-mail = "^1.5.0"
 pydantic-settings = "^2.2"
+fastapi-limiter = "^0.1.6"
+redis = "^6.2.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0"]

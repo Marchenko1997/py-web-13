@@ -28,3 +28,10 @@ async def confirm_email(email: str, db: Session):
         db.commit()
         db.refresh(user)
         return user
+
+
+async def update_avatar(user: User, url: str, db: Session) -> User:
+    user.avatar = url
+    db.commit()
+    db.refresh(user)
+    return user

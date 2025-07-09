@@ -6,7 +6,7 @@ services:
     image: postgres:15-alpine
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: Ukraine2018
       POSTGRES_DB: contacts_db
     volumes:
       - pgdata:/var/lib/postgresql/data

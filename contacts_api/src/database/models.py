@@ -23,4 +23,5 @@ class User(Base):
     refresh_token = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=func.now())
     confirmed = Column(Boolean, default=False)
+    avatar = Column(String(512), nullable=True)
     contacts = relationship("Contact", back_populates="user")

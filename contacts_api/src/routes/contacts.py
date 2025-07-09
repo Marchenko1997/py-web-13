@@ -6,11 +6,16 @@ from src.database.db import get_db
 from src.repository import contacts as repo
 from src.database.models import User
 from src.services.auth import auth_service
+from fastapi_limiter.depends import RateLimiter
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
 
 
-@router.post("/", response_model=ContactResponse)
+@router.post(
+    "/",
+    response_model=ContactResponse,
+    dependencies=[Depends(RateLimiter(times=5, seconds=60))], 
+)
 def create(
     contact: ContactCreate,
     db: Session = Depends(get_db),
