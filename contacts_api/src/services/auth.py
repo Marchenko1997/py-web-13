@@ -1,17 +1,19 @@
-import os
+import os, json
 from datetime import datetime, timedelta, timezone
-
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
-from jose import JWTError, jwt
+from jose import jwt, JWTError
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from src.database.db import get_db
 from src.repository import users as repository_users
-from src.services.security import http_bearer  # ✅
+from src.services.security import http_bearer
+from src.services.deps import get_redis  
 
 
+REDIS_KEY = "user:{email}"  
+REDIS_TTL = 60 * 15  
 
 
 class Auth:
@@ -20,16 +22,14 @@ class Auth:
     ALGORITHM = os.getenv("ALGORITHM", "HS256")
     EMAIL_SECRET_KEY = os.getenv("EMAIL_SECRET_KEY", SECRET_KEY)
 
-    # ───────── password ───────── #
-
+    # ---------------- хэши ---------------- #
     def get_password_hash(self, password: str) -> str:
         return self.pwd_context.hash(password)
 
     def verify_password(self, plain: str, hashed: str) -> bool:
         return self.pwd_context.verify(plain, hashed)
 
-
-
+    # ---------------- токены -------------- #
     async def _create(self, data: dict, minutes: int, scope: str) -> str:
         payload = data | {
             "exp": datetime.now(timezone.utc) + timedelta(minutes=minutes),
@@ -52,12 +52,12 @@ class Auth:
         except JWTError:
             raise HTTPException(status_code=401, detail="Invalid token")
 
-
-
+    # --------------- current user + Redis --------------- #
     async def get_current_user(
         self,
-        credentials: HTTPAuthorizationCredentials = Depends(http_bearer),  # ✅
+        credentials: HTTPAuthorizationCredentials = Depends(http_bearer),
         db: Session = Depends(get_db),
+        redis=Depends(get_redis), 
     ):
         token = credentials.credentials
         try:
@@ -68,13 +68,29 @@ class Auth:
         except JWTError:
             raise HTTPException(status_code=401, detail="Invalid token")
 
+    
+        cache_key = REDIS_KEY.format(email=email)  
+        cached = await redis.get(cache_key)
+        if cached:
+            return json.loads(cached)  
+       
         user = await repository_users.get_user_by_email(email, db)
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
-        return user
 
+        user_data = {
+            "id": user.id,
+            "email": user.email,
+            "confirmed": user.confirmed,
+            "avatar": user.avatar,
+        }
 
+       
+        await redis.set(cache_key, json.dumps(user_data), ex=REDIS_TTL)
 
+        return user_data
+
+    # --------------- email-токен --------------- #
     async def create_email_token(self, data: dict) -> str:
         payload = data | {"exp": datetime.now(timezone.utc) + timedelta(hours=24)}
         return jwt.encode(payload, self.EMAIL_SECRET_KEY, algorithm=self.ALGORITHM)

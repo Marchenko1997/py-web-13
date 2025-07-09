@@ -10,6 +10,10 @@ from src.services.auth import auth_service
 from src.services.email import send_verification_email
 from src.services.security import oauth2_scheme, http_bearer
 
+import json
+from src.services.deps import get_redis
+from src.services.auth import REDIS_KEY, REDIS_TTL
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
@@ -28,9 +32,13 @@ async def signup(body: UserModel, db: Session = Depends(get_db)):
 
 
 # ───────── login ───────── #
+
+
 @router.post("/login", response_model=TokenModel)
 async def login(
-    form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+    form: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+    redis=Depends(get_redis),  
 ):
     user = await repository_users.get_user_by_email(form.username, db)
     if not user or not auth_service.verify_password(form.password, user.password):
@@ -41,6 +49,21 @@ async def login(
     access = await auth_service.create_access_token({"sub": user.email})
     refresh = await auth_service.create_refresh_token({"sub": user.email})
     await repository_users.update_token(user, refresh, db)
+
+  
+    await redis.set(
+        REDIS_KEY.format(email=user.email),
+        json.dumps(
+            {
+                "id": user.id,
+                "email": user.email,
+                "confirmed": user.confirmed,
+                "avatar": user.avatar,
+            }
+        ),
+        ex=REDIS_TTL,
+    )
+
     return {"access_token": access, "refresh_token": refresh, "token_type": "bearer"}
 
 
@@ -69,6 +92,7 @@ async def refresh_token(
 async def logout(
     cred: HTTPAuthorizationCredentials = Security(http_bearer),
     db: Session = Depends(get_db),
+    redis=Depends(get_redis),  # ✅ получаем Redis
 ):
     token = cred.credentials
     try:
@@ -81,6 +105,7 @@ async def logout(
     user = await repository_users.get_user_by_email(email, db)
     if user:
         await repository_users.update_token(user, None, db)
+        await redis.delete(REDIS_KEY.format(email=email)) 
 
 
 # ───── confirm email ───── #
