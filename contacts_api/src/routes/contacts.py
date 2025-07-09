@@ -14,7 +14,7 @@ router = APIRouter(prefix="/contacts", tags=["contacts"])
 @router.post(
     "/",
     response_model=ContactResponse,
-    dependencies=[Depends(RateLimiter(times=5, seconds=60))], 
+    dependencies=[Depends(RateLimiter(times=2, seconds=300))],
 )
 def create(
     contact: ContactCreate,
